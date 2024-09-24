@@ -1,7 +1,7 @@
 # lib/employee.py
 from __init__ import CURSOR, CONN
 from department import Department
-
+# from review import Review
 class Employee:
 
     # Dictionary of objects saved to the database.
@@ -81,19 +81,39 @@ class Employee:
         CONN.commit()
 
     def save(self):
-        """ Insert a new row with the name, job title, and department id values of the current Employee object.
-        Update object id attribute using the primary key value of new row.
-        Save the object in local dictionary using table row's PK as dictionary key"""
-        sql = """
+        """Save the employee instance to the database."""
+        if self.id is None:  # If this is a new employee
+            sql = """
                 INSERT INTO employees (name, job_title, department_id)
                 VALUES (?, ?, ?)
-        """
+            """
+            CURSOR.execute(sql, (self.name, self.job_title, self.department_id))
+            CONN.commit()
+            self.id = CURSOR.lastrowid  # Set the instance id to the last inserted id
+            type(self).all[self.id] = self  # Add the instance to the class-level dictionary
+        else:  # If updating an existing employee
+            sql = """
+                UPDATE employees
+                SET name = ?, job_title = ?, department_id = ?
+                WHERE id = ?
+            """
+            CURSOR.execute(sql, (self.name, self.job_title, self.department_id, self.id))
+            CONN.commit()
 
-        CURSOR.execute(sql, (self.name, self.job_title, self.department_id))
-        CONN.commit()
+    # def save(self):
+    #     """ Insert a new row with the name, job title, and department id values of the current Employee object.
+    #     Update object id attribute using the primary key value of new row.
+    #     Save the object in local dictionary using table row's PK as dictionary key"""
+    #     sql = """
+    #             INSERT INTO employees (name, job_title, department_id)
+    #             VALUES (?, ?, ?)
+    #     """
 
-        self.id = CURSOR.lastrowid
-        type(self).all[self.id] = self
+    #     CURSOR.execute(sql, (self.name, self.job_title, self.department_id))
+    #     CONN.commit()
+
+    #     self.id = CURSOR.lastrowid
+    #     type(self).all[self.id] = self
 
     def update(self):
         """Update the table row corresponding to the current Employee instance."""
@@ -187,4 +207,11 @@ class Employee:
 
     def reviews(self):
         """Return list of reviews associated with current employee"""
-        pass
+        from review import Review  # Move the import here
+        sql = '''
+             SELECT * FROM reviews WHERE employee_id = ?
+        '''
+        rows = CURSOR.execute(sql, (self.id,)).fetchall()
+        return [Review.instance_from_db(row) for row in rows]
+
+
